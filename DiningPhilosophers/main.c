@@ -14,38 +14,41 @@
 
 #define PHILOS 5
 #define DELAY 5000
-#define FOOD 50
+#define FOOD 1000
 
-void *philosopher (void *id);
-void grab_chopstick (int, int, char *);
-void down_chopsticks (int, int);
+void *philosopher_routine (void *id);
+int grab_chopstick (int, int, char *);
+void down_chopsticks (int, int, int);
 int food_on_table ();
 
+int food = FOOD;
+
 pthread_mutex_t chopstick[PHILOS];
-pthread_t philo[PHILOS];
+pthread_t philosophers[PHILOS];
 pthread_mutex_t food_lock;
 int sleep_seconds = 0;
 
 
 int main (int argn, char **argv) {
     int i;
-    
+
     if (argn == 2)
         sleep_seconds = atoi (argv[1]);
     
     pthread_mutex_init (&food_lock, NULL);
     for (i = 0; i < PHILOS; i++)
         pthread_mutex_init (&chopstick[i], NULL);
+    for (i = 0; i < PHILOS; i++) {
+        pthread_create (&philosophers[i], NULL, philosopher_routine, (void *)i);
+    }
     for (i = 0; i < PHILOS; i++)
-        pthread_create (&philo[i], NULL, philosopher, (void *)i);
-    for (i = 0; i < PHILOS; i++)
-        pthread_join (philo[i], NULL);
+        pthread_join (philosophers[i], NULL);
     return 0;
 }
 
-void * philosopher (void *num) {
+void * philosopher_routine (void *num) {
     int id;
-    int i, left_chopstick, right_chopstick, f;
+    int left_chopstick, right_chopstick;
     
     id = (int)num;
     printf ("Philosopher %d is done thinking and now ready to eat.\n", id);
@@ -56,21 +59,26 @@ void * philosopher (void *num) {
     if (left_chopstick == PHILOS)
         left_chopstick = 0;
     
-    while (f = food_on_table ()) {
+    while (food > 0) {
         
-        /* Thanks to philosophers #1 who would like to take a nap
-         * before picking up the chopsticks, the other philosophers
-         * may be able to eat their dishes and not deadlock.
-         */
         if (id == 1)
             sleep (sleep_seconds);
         
-        grab_chopstick (id, right_chopstick, "right ");
-        grab_chopstick (id, left_chopstick, "left");
+        if (grab_chopstick (id, right_chopstick, "right")) {
+            printf("Philosopher %d have tried to use chopstick %d but it's blocked\n", id, right_chopstick);
+            continue;
+        }
+        if (grab_chopstick (id, left_chopstick, "left")) {
+            pthread_mutex_unlock (&chopstick[right_chopstick]);
+            printf("Philosopher %d have tried to use chopstick %d but it's blocked, so he down the chopstick %d\n", id, left_chopstick, right_chopstick);
+            continue;
+        }
         
-        printf ("Philosopher %d: eating.\n", id);
-        usleep (DELAY * (FOOD - f + 1));
-        down_chopsticks (left_chopstick, right_chopstick);
+        food_on_table ();
+        
+        printf ("Philosopher %d: eating using chopstick %d and %d \n", id, left_chopstick, right_chopstick);
+        usleep (DELAY * (FOOD - food + 1));
+        down_chopsticks (id, left_chopstick, right_chopstick);
     }
     
     printf ("Philosopher %d is done eating.\n", id);
@@ -78,7 +86,6 @@ void * philosopher (void *num) {
 }
 
 int food_on_table () {
-    static int food = FOOD;
     int myfood;
     
     pthread_mutex_lock (&food_lock);
@@ -90,13 +97,17 @@ int food_on_table () {
     return myfood;
 }
 
-void grab_chopstick (int phil, int c, char *hand) {
-    pthread_mutex_lock (&chopstick[c]);
-    printf ("Philosopher %d: got %s chopstick %d\n", phil, hand, c);
+int grab_chopstick (int philosopher, int c, char *hand) {
+    int result = pthread_mutex_trylock(&chopstick[c]);
+    if (result)
+        printf ("Philosopher %d can't get the chopstick %d\n", philosopher, c);
+    else
+        printf ("Philosopher %d: got %s chopstick %d\n", philosopher, hand, c);
+    return result;
 }
 
-void down_chopsticks (int c1, int c2)
-{
+void down_chopsticks (int id, int c1, int c2) {
     pthread_mutex_unlock (&chopstick[c1]);
     pthread_mutex_unlock (&chopstick[c2]);
+    printf("Philosopher %d: stop eating and down chopsticks %d and %d\n", id, c1, c2);
 }
