@@ -14,7 +14,7 @@
 
 #define PHILOS 5
 #define DELAY 5000
-#define FOOD 50
+#define FOOD 100
 
 void *philosopher (void *id);
 void grab_chopstick (int, int, char *);
@@ -65,8 +65,13 @@ void * philosopher (void *num) {
         if (id == 1)
             sleep (sleep_seconds);
         
-        grab_chopstick (id, right_chopstick, "right ");
-        grab_chopstick (id, left_chopstick, "left");
+        if (id == 2) {
+            grab_chopstick (id, left_chopstick, "left");
+            grab_chopstick (id, right_chopstick, "right");
+        } else {
+            grab_chopstick (id, right_chopstick, "right");
+            grab_chopstick (id, left_chopstick, "left");
+        }
         
         printf ("Philosopher %d: eating.\n", id);
         usleep (DELAY * (FOOD - f + 1));
