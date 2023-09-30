@@ -46,44 +46,37 @@ int main (int argn, char **argv) {
     return 0;
 }
 
-void * philosopher_routine (void *num) {
+void *philosopher(void *num) {
     int id;
     int left_chopstick, right_chopstick;
     
     id = (int)num;
-    printf ("Philosopher %d is done thinking and now ready to eat.\n", id);
-    right_chopstick = id;
-    left_chopstick = id + 1;
+    printf("Philosopher %d is done thinking and now ready to eat.\n", id);
+    left_chopstick = id;
+    right_chopstick = (id + 1) % PHILOS; // Garfo à direita
     
-    /* Wrap around the chopsticks. */
-    if (left_chopstick == PHILOS)
-        left_chopstick = 0;
-    
-    while (food > 0) {
-        
+    while (f = food_on_table()) {
         if (id == 1)
-            sleep (sleep_seconds);
+            sleep(sleep_seconds);
         
-        if (grab_chopstick (id, right_chopstick, "right")) {
-            printf("Philosopher %d have tried to use chopstick %d but it's blocked\n", id, right_chopstick);
-            continue;
-        }
-        if (grab_chopstick (id, left_chopstick, "left")) {
-            pthread_mutex_unlock (&chopstick[right_chopstick]);
-            printf("Philosopher %d have tried to use chopstick %d but it's blocked, so he down the chopstick %d\n", id, left_chopstick, right_chopstick);
-            continue;
+        if (id == 2) {
+            grab_chopstick(id, right_chopstick, "right");
+            grab_chopstick(id, left_chopstick, "left");
+        } else {
+            grab_chopstick(id, left_chopstick, "left");
+            grab_chopstick(id, right_chopstick, "right");
         }
         
-        food_on_table ();
+        printf("Philosopher %d: eating.\n", id);
+        usleep(DELAY * (FOOD - f + 1));
         
-        printf ("Philosopher %d: eating using chopstick %d and %d \n", id, left_chopstick, right_chopstick);
-        usleep (DELAY * (FOOD - food + 1));
-        down_chopsticks (id, left_chopstick, right_chopstick);
+        down_chopsticks(left_chopstick, right_chopstick);
     }
     
-    printf ("Philosopher %d is done eating.\n", id);
+    printf("Philosopher %d is done eating.\n", id);
     return (NULL);
 }
+
 
 int food_on_table () {
     int myfood;
